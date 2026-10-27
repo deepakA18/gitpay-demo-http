@@ -1,0 +1,37 @@
+{
+  "name": "gitpay-demo-http",
+  "version": "1.0.1",
+  "description": "Isolated GitPay demo derived from PayPal HTTP client",
+  "keywords": [
+    "paypalhttp",
+    "payments"
+  ],
+  "homepage": "https://github.com/deepakA18/gitpay-demo-http",
+  "author": "PayPal",
+  "main": "index",
+  "directories": {
+    "lib": "./lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepakA18/gitpay-demo-http.git"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "busboy": "^0.2.14",
+    "chai": "1.5.0",
+    "eslint": "^2.7.0",
+    "eslint-config-braintree": "^1.0.2",
+    "mocha": "3.2.0",
+    "nock": "^9.0.13",
+    "sinon": "^2.3.2"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test demo-test/*.test.cjs"
+  },
+  "private": true
+}
