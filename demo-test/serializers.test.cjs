@@ -4,6 +4,7 @@ const {Json}=require('../lib/paypalhttp/serializer/json');
 const {FormEncoded}=require('../lib/paypalhttp/serializer/form_encoded');
 test('JSON serializer round trips a value',()=>{const s=new Json();assert.deepEqual(s.decode(s.encode({body:{example:123}})),{example:123});});
 test('form serializer escapes values',()=>{assert.equal(new FormEncoded().encode({body:{note:'hello & goodbye'}}),'note=hello%20%26%20goodbye');});
+test('form serializer encodes an empty body as an empty string',()=>{assert.equal(new FormEncoded().encode({body:{}}),'');});
 test('form serializer escapes field names and values',()=>{
   assert.equal(
     new FormEncoded().encode({body:{
