@@ -74,3 +74,16 @@ test('form encoding does not mutate array inputs', () => {
   assert.deepEqual(body, {tag: ['red', 'blue']});
 });
 
+test('form encoding omits scalar null and undefined values', () => {
+  assert.equal(
+    new FormEncoded().encode({body: {before: 'one', nullValue: null, undefinedValue: undefined, after: 'two'}}),
+    'before=one&after=two'
+  );
+});
+
+test('form encoding retains scalar empty strings, zero, and false', () => {
+  assert.equal(
+    new FormEncoded().encode({body: {empty: '', zero: 0, disabled: false}}),
+    'empty=&zero=0&disabled=false'
+  );
+});
