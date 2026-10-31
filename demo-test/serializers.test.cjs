@@ -113,3 +113,39 @@ test('form encoding rejects unsupported scalar values', () => {
     );
   }
 });
+
+test('form encoding supports array strings, booleans, and finite numbers', () => {
+  assert.equal(
+    new FormEncoded().encode({
+      body: { tag: ['hello', true, 0, 12.5] }
+    }),
+    'tag=hello&tag=true&tag=0&tag=12.5'
+  );
+});
+
+test('form encoding rejects unsupported array elements', () => {
+  const unsupportedValues = [
+    {},
+    [],
+    () => {},
+    Symbol('unsupported'),
+    1n,
+    NaN,
+    Infinity,
+    -Infinity
+  ];
+
+  for (const value of unsupportedValues) {
+    assert.throws(
+      () => new FormEncoded().encode({ body: { tag: [value] } }),
+      { name: 'TypeError', message: 'Unsupported form field value for "tag"' }
+    );
+  }
+});
+
+test('form encoding preserves existing nullish array-item behavior', () => {
+  assert.equal(
+    new FormEncoded().encode({ body: { tag: [null, undefined] } }),
+    'tag=null&tag=undefined'
+  );
+});
