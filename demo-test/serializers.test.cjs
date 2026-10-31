@@ -50,7 +50,17 @@ test('form serializer escapes field names and values', () => {
   );
 });
 
+test('form arrays omit null and undefined elements', () => {
+  const values = ['red', null, undefined, '', 'blue'];
 
+  assert.equal(
+    new FormEncoded().encode({
+      body: { before: 'one', tag: values, after: 'two' }
+    }),
+    'before=one&tag=red&tag=&tag=blue&after=two'
+  );
+  assert.deepEqual(values, ['red', null, undefined, '', 'blue']);
+});
 
 test('form arrays produce repeated pairs', () => {
   assert.equal(new FormEncoded().encode({body: {tag: ['red', 'blue']}}),
