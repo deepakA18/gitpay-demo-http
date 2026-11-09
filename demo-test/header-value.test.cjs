@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const headerValue = require('../lib/paypalhttp/header_value');
 
+
 test('matches header names ignoring case and preserves original values', () => {
   const value = ['text/plain'];
   assert.strictEqual(headerValue({ 'Content-Type': value }, 'cOnTeNt-TyPe'), value);
@@ -25,4 +26,17 @@ test('input is never mutated', () => {
   assert.equal(headerValue(headers, 'accept'), 'json');
   assert.equal(headerValue(headers, 'absent'), undefined);
   assert.deepEqual(headers, { Accept: 'json', 'X-Test': 0 });
+});
+
+
+
+test("non-enumerable own headers are matched without mutation", () => {
+  const value = ["private-value"];
+  const headers = Object.create({ "X-Inherited": "ignore" });
+  Object.defineProperty(headers, "X-Hidden", { value, enumerable: false });
+  Object.freeze(headers);
+  const before = Object.getOwnPropertyDescriptors(headers);
+  assert.strictEqual(headerValue(headers, "x-HIDDEN"), value);
+  assert.equal(headerValue(headers, "x-inherited"), undefined);
+  assert.deepEqual(Object.getOwnPropertyDescriptors(headers), before);
 });
