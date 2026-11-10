@@ -149,3 +149,25 @@ test('form encoding preserves existing nullish array-item behavior', () => {
     'tag=null&tag=undefined'
   );
 });
+
+test('JSON decoder accepts one leading Unicode BOM', () => {
+  assert.deepEqual(new Json().decode('\uFEFF{"example":123}'), {example: 123});
+});
+
+test('JSON decoder preserves ordinary objects, arrays and scalar values', () => {
+  const decoder = new Json();
+  for (const value of [{example: 123}, [1, 'two', null], 'hello', 42, true, false, null]) {
+    assert.deepEqual(decoder.decode(JSON.stringify(value)), value);
+  }
+});
+
+test('JSON decoder preserves Unicode BOM inside string values', () => {
+  assert.deepEqual(new Json().decode('{"text":"before\uFEFFafter"}'), {text: 'before\uFEFFafter'});
+  assert.equal(new Json().decode('"\uFEFFinside"'), '\uFEFFinside');
+});
+
+test('JSON decoder still rejects invalid JSON and strips only one leading BOM', () => {
+  for (const body of ['{invalid}', '\uFEFF{invalid}', '\uFEFF\uFEFF{"example":123}', 'x{"example":123}', '\uFEFF']) {
+    assert.throws(() => new Json().decode(body), SyntaxError);
+  }
+});
