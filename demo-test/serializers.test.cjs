@@ -311,3 +311,29 @@ test('text decoder does not mutate a Uint8Array or its backing bytes', () => {
   assert.equal(new Text().decode(bytes.subarray(1, 6)), 'hello');
   assert.deepEqual(bytes, before);
 });
+
+
+test('text encoder accepts UTF-8 Uint8Array including empty and Unicode text', () => {
+  for (const text of ['', 'hello world', 'caf\u00e9 \u2615', 'line one\nline two']) {
+    const bytes = Uint8Array.from(Buffer.from(text, 'utf8'));
+    assert.equal(new Text().encode({ body: bytes }), text);
+  }
+});
+
+test('text encoder respects Uint8Array subarray bounds', () => {
+  const content = Buffer.from('caf\u00e9 \u2615', 'utf8');
+  const bytes = Uint8Array.from(Buffer.concat([Buffer.from('BAD'), content, Buffer.from('BAD')]));
+  assert.equal(new Text().encode({ body: bytes.subarray(3, 3 + content.length) }), 'caf\u00e9 \u2615');
+});
+
+test('text encoder preserves leading and embedded BOM characters', () => {
+  const text = '\uFEFFfirst\uFEFFlast';
+  assert.equal(new Text().encode({ body: Uint8Array.from(Buffer.from(text, 'utf8')) }), text);
+});
+
+test('text encoder does not mutate a Uint8Array or its backing bytes', () => {
+  const bytes = Uint8Array.from(Buffer.from('!hello?', 'utf8'));
+  const before = Uint8Array.from(bytes);
+  assert.equal(new Text().encode({ body: bytes.subarray(1, 6) }), 'hello');
+  assert.deepEqual(bytes, before);
+});
