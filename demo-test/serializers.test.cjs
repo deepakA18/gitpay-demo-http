@@ -253,3 +253,35 @@ test('JSON Buffer decoding does not mutate its input', () => {
   assert.deepEqual(new Json().decode(input), {ok: true});
   assert.deepEqual(input, original);
 });
+
+
+test('JSON Uint8Array decodes UTF-8 values with or without one BOM', () => {
+  const json = new Json();
+  for (const value of [{text: 'café ☕'}, [1, 'two'], 'hello', 42, true, null]) {
+    for (const prefix of ['', '\uFEFF']) {
+      const bytes = Uint8Array.from(Buffer.from(prefix + JSON.stringify(value), 'utf8'));
+      assert.deepEqual(json.decode(bytes), value);
+    }
+  }
+});
+
+test('JSON Uint8Array respects the bounds of a sliced view', () => {
+  const content = Buffer.from('\uFEFF{"text":"café"}', 'utf8');
+  const bytes = Uint8Array.from(Buffer.concat([Buffer.from('BAD'), content, Buffer.from('BAD')]));
+  const view = bytes.subarray(3, 3 + content.length);
+  assert.deepEqual(new Json().decode(view), {text: 'café'});
+});
+
+test('JSON Uint8Array preserves embedded BOM and does not mutate bytes', () => {
+  const bytes = Uint8Array.from(Buffer.from('\uFEFF{"text":"a\uFEFFb"}', 'utf8'));
+  const before = Uint8Array.from(bytes);
+  assert.deepEqual(new Json().decode(bytes), {text: 'a\uFEFFb'});
+  assert.deepEqual(bytes, before);
+});
+
+test('JSON Uint8Array rejects invalid JSON and extra leading BOM', () => {
+  for (const input of ['', '{', 'BAD{}', '\uFEFF', '\uFEFF\uFEFF{}']) {
+    const bytes = Uint8Array.from(Buffer.from(input, 'utf8'));
+    assert.throws(() => new Json().decode(bytes), SyntaxError);
+  }
+});
