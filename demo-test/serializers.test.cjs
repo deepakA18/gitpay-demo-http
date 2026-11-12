@@ -285,3 +285,29 @@ test('JSON Uint8Array rejects invalid JSON and extra leading BOM', () => {
     assert.throws(() => new Json().decode(bytes), SyntaxError);
   }
 });
+
+
+test('text decoder accepts UTF-8 Uint8Array including empty and Unicode text', () => {
+  for (const text of ['', 'hello world', 'café ☕', 'line one\nline two']) {
+    const bytes = Uint8Array.from(Buffer.from(text, 'utf8'));
+    assert.equal(new Text().decode(bytes), text);
+  }
+});
+
+test('text decoder respects Uint8Array subarray bounds', () => {
+  const content = Buffer.from('café ☕', 'utf8');
+  const bytes = Uint8Array.from(Buffer.concat([Buffer.from('BAD'), content, Buffer.from('BAD')]));
+  assert.equal(new Text().decode(bytes.subarray(3, 3 + content.length)), 'café ☕');
+});
+
+test('text decoder preserves leading and embedded BOM characters', () => {
+  const text = '\uFEFFfirst\uFEFFlast';
+  assert.equal(new Text().decode(Uint8Array.from(Buffer.from(text, 'utf8'))), text);
+});
+
+test('text decoder does not mutate a Uint8Array or its backing bytes', () => {
+  const bytes = Uint8Array.from(Buffer.from('!hello?', 'utf8'));
+  const before = Uint8Array.from(bytes);
+  assert.equal(new Text().decode(bytes.subarray(1, 6)), 'hello');
+  assert.deepEqual(bytes, before);
+});
