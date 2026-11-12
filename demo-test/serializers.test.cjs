@@ -171,3 +171,53 @@ test('JSON decoder still rejects invalid JSON and strips only one leading BOM', 
     assert.throws(() => new Json().decode(body), SyntaxError);
   }
 });
+
+const { Text } = require('../lib/paypalhttp/serializer/text');
+
+test('text serializer handles nullish bodies', () => {
+  const serializer = new Text();
+
+  for (const body of [null, undefined]) {
+    assert.equal(serializer.encode({ body }), '');
+    assert.equal(serializer.decode(body), '');
+  }
+
+  assert.equal(serializer.encode({}), '');
+});
+
+test('text serializer preserves existing conversions', () => {
+  const serializer = new Text();
+  const cases = [
+    ['', ''],
+    ['hello', 'hello'],
+    ['café ☕', 'café ☕'],
+    [0, '0'],
+    [false, 'false'],
+    [Buffer.from('café ☕', 'utf8'), 'café ☕']
+  ];
+
+  for (const [body, expected] of cases) {
+    assert.equal(serializer.encode({ body }), expected);
+    assert.equal(serializer.decode(body), expected);
+  }
+});
+
+test('text serializer does not mutate requests or buffers', () => {
+  const serializer = new Text();
+  const body = Buffer.from('hello', 'utf8');
+  const original = Buffer.from(body);
+  const request = Object.freeze({ body });
+
+  assert.equal(serializer.encode(request), 'hello');
+  assert.equal(serializer.decode(body), 'hello');
+  assert.equal(request.body, body);
+  assert.deepEqual(body, original);
+});
+
+test('text serializer preserves content type matching', () => {
+  const pattern = new Text().contentType();
+
+  assert.equal(pattern.test('text/plain'), true);
+  assert.equal(pattern.test('text/html; charset=utf-8'), true);
+  assert.equal(pattern.test('application/json'), false);
+});
