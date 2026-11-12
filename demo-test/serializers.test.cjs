@@ -221,3 +221,35 @@ test('text serializer preserves content type matching', () => {
   assert.equal(pattern.test('text/html; charset=utf-8'), true);
   assert.equal(pattern.test('application/json'), false);
 });
+
+test('JSON Buffer decoding supports plain UTF-8 and one leading BOM', () => {
+  const decoder = new Json();
+  for (const value of [{text: 'café ☕'}, [1, 'two', null], 'hello', 0, false, null]) {
+    for (const prefix of ['', '\uFEFF']) {
+      const input = Buffer.from(prefix + JSON.stringify(value), 'utf8');
+      assert.deepEqual(decoder.decode(input), value);
+    }
+  }
+});
+
+test('JSON Buffer decoding preserves embedded BOM characters', () => {
+  const decoder = new Json();
+  for (const value of ['\uFEFFinside', {text: 'before\uFEFFafter'}]) {
+    assert.deepEqual(decoder.decode(Buffer.from(JSON.stringify(value), 'utf8')), value);
+  }
+});
+
+test('JSON Buffer decoding rejects invalid JSON and additional leading BOMs', () => {
+  const decoder = new Json();
+  for (const input of ['', '{invalid}', '\uFEFF', '\uFEFF{invalid}',
+    '\uFEFF\uFEFF{"ok":true}', 'x{"ok":true}']) {
+    assert.throws(() => decoder.decode(Buffer.from(input, 'utf8')), SyntaxError);
+  }
+});
+
+test('JSON Buffer decoding does not mutate its input', () => {
+  const input = Buffer.from('\uFEFF{"ok":true}', 'utf8');
+  const original = Buffer.from(input);
+  assert.deepEqual(new Json().decode(input), {ok: true});
+  assert.deepEqual(input, original);
+});
