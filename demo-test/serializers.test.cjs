@@ -311,3 +311,51 @@ test('text decoder does not mutate a Uint8Array or its backing bytes', () => {
   assert.equal(new Text().decode(bytes.subarray(1, 6)), 'hello');
   assert.deepEqual(bytes, before);
 });
+
+test('text encoder accepts UTF-8 Uint8Array bodies', () => {
+  for (const text of ['', 'hello world', 'café ☕', 'line one\nline two', '\uFEFFfirst\uFEFFlast']) {
+    const body = Uint8Array.from(Buffer.from(text, 'utf8'));
+    assert.equal(new Text().encode({ body }), text);
+  }
+});
+
+test('text encoder reads only the supplied Uint8Array view', () => {
+  const text = '\uFEFFcafé ☕\uFEFF';
+  const content = Buffer.from(text, 'utf8');
+  const bytes = Uint8Array.from(Buffer.concat([Buffer.from('BAD'), content, Buffer.from('BAD')]));
+  const view = bytes.subarray(3, 3 + content.length);
+  const request = Object.freeze({ body: view });
+  const before = Uint8Array.from(bytes);
+
+  assert.equal(new Text().encode(request), text);
+  assert.equal(new Text().encode({ body: bytes.subarray(3, 3) }), '');
+  assert.equal(request.body, view);
+  assert.deepEqual(bytes, before);
+});
+
+test('text encoder preserves Buffer and generic toString behavior', () => {
+  const serializer = new Text();
+  const body = Buffer.from('\uFEFFfirst\uFEFFlast', 'utf8');
+  const before = Buffer.from(body);
+  assert.equal(serializer.encode({ body }), '\uFEFFfirst\uFEFFlast');
+  assert.equal(serializer.encode({ body: body.subarray(3) }), 'first\uFEFFlast');
+  assert.deepEqual(body, before);
+
+  // Buffers already had a toString path; do not replace custom conversions.
+  body.toString = () => 'custom buffer';
+  assert.equal(serializer.encode({ body }), 'custom buffer');
+  let calls = 0;
+  const custom = { toString() { calls++; return 'custom body'; } };
+  assert.equal(serializer.encode({ body: custom }), 'custom body');
+  assert.equal(calls, 1);
+  for (const value of [new Uint16Array([65, 66]), new DataView(new ArrayBuffer(2))]) {
+    assert.equal(serializer.encode({ body: value }), value.toString());
+  }
+});
+
+test('text encoder follows UTF-8 replacement behavior for malformed bytes', () => {
+  const body = new Uint8Array([0xff, 0xc3, 0x28, 0x00]);
+  const before = Uint8Array.from(body);
+  assert.equal(new Text().encode({ body }), '\uFFFD\uFFFD(\u0000');
+  assert.deepEqual(body, before);
+});
