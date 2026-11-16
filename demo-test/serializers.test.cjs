@@ -311,3 +311,53 @@ test('text decoder does not mutate a Uint8Array or its backing bytes', () => {
   assert.equal(new Text().decode(bytes.subarray(1, 6)), 'hello');
   assert.deepEqual(bytes, before);
 });
+
+
+test('text encoder decodes Uint8Array UTF-8 text', () => {
+  for (const expected of ['', 'ASCII', 'café ☕ 日本語 😀', 'one\ntwo\r\nthree']) {
+    const body = Uint8Array.from(Buffer.from(expected, 'utf8'));
+    assert.equal(new Text().encode({ body }), expected);
+  }
+});
+
+test('text encoder respects nonzero offsets, lengths, and empty views', () => {
+  const expected = 'café ☕';
+  const payload = Buffer.from(expected, 'utf8');
+  const bytes = Uint8Array.from(Buffer.concat([Buffer.from('BAD'), payload, Buffer.from('BAD')]));
+  const encoder = new Text();
+  assert.equal(encoder.encode({ body: bytes.subarray(3, 3 + payload.length) }), expected);
+  assert.equal(encoder.encode({ body: new Uint8Array(bytes.buffer, 3, payload.length) }), expected);
+  assert.equal(encoder.encode({ body: bytes.subarray(3, 3) }), '');
+});
+
+test('text encoder preserves leading, repeated, and embedded BOM characters', () => {
+  for (const expected of ['\uFEFF', '\uFEFF\uFEFFfirst\uFEFFlast']) {
+    assert.equal(new Text().encode({ body: Uint8Array.from(Buffer.from(expected, 'utf8')) }), expected);
+  }
+});
+
+test('text encoder does not mutate a view, request, or backing bytes', () => {
+  const bytes = Uint8Array.from(Buffer.from('!café ☕?', 'utf8'));
+  const before = Uint8Array.from(bytes);
+  const body = bytes.subarray(1, bytes.length - 1);
+  const request = Object.freeze({ body });
+  assert.equal(new Text().encode(request), 'café ☕');
+  assert.strictEqual(request.body, body);
+  assert.deepEqual(bytes, before);
+});
+
+test('text encoder retains toString behavior for Buffers and other bodies', () => {
+  const custom = { toString() { return 'custom'; } };
+  const buffer = Buffer.from('café ☕', 'utf8');
+  const overriddenBuffer = Buffer.from('ignored');
+  overriddenBuffer.toString = () => 'custom buffer';
+  const encoder = new Text();
+  for (const [body, expected] of [
+    [null, ''], [undefined, ''], ['', ''], ['\uFEFFtext', '\uFEFFtext'],
+    [buffer, 'café ☕'], [overriddenBuffer, 'custom buffer'],
+    [0, '0'], [false, 'false'], [custom, 'custom'], [[1, 2], '1,2'],
+    [new Uint16Array([65, 66]), '65,66']
+  ]) {
+    assert.equal(encoder.encode({ body }), expected);
+  }
+});
