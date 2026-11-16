@@ -311,3 +311,44 @@ test('text decoder does not mutate a Uint8Array or its backing bytes', () => {
   assert.equal(new Text().decode(bytes.subarray(1, 6)), 'hello');
   assert.deepEqual(bytes, before);
 });
+
+test('text encoder accepts UTF-8 Uint8Array including empty, Unicode and newlines', () => {
+  for (const text of ['', 'hello world', 'café ☕ 🚀', 'line one\nline two\r\n']) {
+    const bytes = Uint8Array.from(Buffer.from(text, 'utf8'));
+    assert.equal(new Text().encode({body: bytes}), text);
+  }
+});
+
+test('text encoder respects Uint8Array view bounds, including empty views', () => {
+  const content = Buffer.from('café ☕', 'utf8');
+  const bytes = Uint8Array.from(Buffer.concat([Buffer.from('BAD'), content, Buffer.from('BAD')]));
+  const serializer = new Text();
+  assert.equal(serializer.encode({body: bytes.subarray(3, 3 + content.length)}), 'café ☕');
+  assert.equal(serializer.encode({body: bytes.subarray(3, 3)}), '');
+});
+
+test('text encoder preserves leading and embedded BOM characters', () => {
+  const text = '\uFEFFfirst\uFEFFlast';
+  assert.equal(new Text().encode({body: Uint8Array.from(Buffer.from(text, 'utf8'))}), text);
+});
+
+test('text encoder does not mutate the request, Uint8Array or backing bytes', () => {
+  const bytes = Uint8Array.from(Buffer.from('!hello?', 'utf8'));
+  const before = Uint8Array.from(bytes);
+  const view = bytes.subarray(1, 6);
+  const request = Object.freeze({body: view});
+  assert.equal(new Text().encode(request), 'hello');
+  assert.equal(request.body, view);
+  assert.deepEqual(bytes, before);
+});
+
+test('text encoder preserves Buffer and other toString conversions', () => {
+  const serializer = new Text();
+  const buffer = Buffer.from('hello');
+  buffer.toString = () => 'custom buffer text';
+  assert.equal(serializer.encode({body: buffer}), 'custom buffer text');
+  const body = {toString: () => 'custom object text'};
+  assert.equal(serializer.encode({body}), 'custom object text');
+  assert.equal(serializer.encode({body: [1, 2]}), '1,2');
+  assert.equal(serializer.encode({body: new Uint16Array([1, 2])}), '1,2');
+});
